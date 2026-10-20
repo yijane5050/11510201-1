@@ -1,0 +1,705 @@
+﻿<!DOCTYPE html>
+<html lang="zh-Hant"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打怪升級測驗</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@700&display=swap');
+
+        :root {
+            --background-color: #1a1a2e;
+            --container-bg: #16213e;
+            --border-color: #0f3460;
+            --text-color: #e94560;
+            --option-text-color: #ffffff;
+            --hp-bar-bg: #533440;
+            --hero-hp: #4caf50;
+            --monster-hp: #f44336;
+            --button-bg: #e94560;
+            --button-hover: #c73650;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', 'Press Start 2P', sans-serif;
+            background-color: var(--background-color);
+            color: var(--white);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .game-window {
+            border: 4px solid var(--border-color);
+            background-color: var(--container-bg);
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+            padding: 20px;
+            width: 100%;
+            max-width: 700px;
+            text-align: center;
+            border-radius: 10px;
+        }
+
+        .initial-container.active, .quiz-container.active, .generator-container.active {
+            display: block;
+        }
+        .initial-container, .quiz-container, .generator-container {
+            display: none;
+        }
+
+        h1, h2 {
+            font-family: 'Press Start 2P', cursive;
+            color: var(--text-color);
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        h1 { font-size: 2rem; }
+        h2 { font-size: 1.5rem; }
+
+        button {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1rem;
+            background-color: var(--button-bg);
+            color: var(--option-text-color);
+            border: 2px solid #000;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin: 5px;
+            box-shadow: 3px 3px 0 #000;
+        }
+
+        button:hover {
+            background-color: var(--button-hover);
+        }
+
+        .initial-container button {
+            width: 80%;
+            padding: 15px;
+            font-size: 1.2rem;
+            margin-top: 20px;
+        }
+        
+        .initial-container .clear-btn {
+            background-color: #555;
+        }
+        .initial-container .clear-btn:hover {
+            background-color: #333;
+        }
+        
+        #highScore {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.2rem;
+            color: #ffd700;
+            margin-top: 20px;
+        }
+
+        /* Battle Scene */
+        .battle-scene {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            margin-bottom: 20px;
+            height: 150px;
+        }
+
+        .character-area {
+            width: 40%;
+            position: relative; /* 為了攻擊特效的定位 */
+        }
+        
+        .character-sprite {
+            height: 80px;
+            width: 80px;
+            margin: 0 auto 10px;
+            transition: transform 0.1s ease-in-out;
+        }
+
+        /* 角色圖片由下方的 JavaScript 動態設定 */
+        #hero-sprite, #monster-sprite {
+            background-size: contain;  /* 讓圖片完整顯示在方塊內 */
+            background-repeat: no-repeat; /* 不要重複圖片 */
+            background-position: center; /* 圖片置中 */
+            background-color: transparent; /* 移除背景色 */
+        }
+        
+        .hp-bar-container {
+            width: 100%;
+            height: 20px;
+            background-color: var(--hp-bar-bg);
+            border: 2px solid #000;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .hp-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+
+        #hero-hp-bar { background-color: var(--hero-hp); }
+        #monster-hp-bar { background-color: var(--monster-hp); }
+        
+        .hp-text {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+        
+        .battle-stats {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1rem;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+        
+        #battle-log {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid var(--border-color);
+            height: 40px;
+            line-height: 40px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            border-radius: 5px;
+        }
+
+        .question {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 2px dashed var(--border-color);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .options button {
+            width: 100%;
+            height: 60px;
+            font-size: 0.9rem;
+            font-family: 'Noto Sans TC', 'Press Start 2P', sans-serif;
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .shake {
+            animation: shake 0.2s linear;
+        }
+
+        /* 新增：攻擊爆破特效 */
+        .damage-effect {
+            position: absolute;
+            top: 40px; /* 調整特效在Y軸上的位置 */
+            left: 50%;
+            width: 80px;
+            height: 80px;
+            background-image: radial-gradient(circle, rgba(255,80,80,0.8) 0%, rgba(255,100,0,0.5) 50%, rgba(255,200,0,0) 70%);
+            border-radius: 50%;
+            opacity: 0;
+            animation: explosion 0.3s ease-out;
+            pointer-events: none; /* 確保特效不會擋到滑鼠點擊 */
+            transform: translateX(-50%) translateY(-50%); /* 確保特效置中 */
+        }
+
+        @keyframes explosion {
+            0% {
+                transform: translateX(-50%) translateY(-50%) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(-50%) translateY(-50%) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        .result-layer {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+        }
+        .result-content {
+            background: var(--container-bg);
+            border: 4px solid var(--border-color);
+            padding: 30px;
+            text-align: center;
+        }
+
+        /* Generator styles */
+        .generator-container textarea {
+            width: 95%;
+            height: 200px;
+            background: #1a1a2e;
+            border: 2px solid var(--border-color);
+            color: var(--white);
+            padding: 10px;
+            font-size: 1rem;
+        }
+        .output-table-container {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid var(--border-color);
+        }
+        .output-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .output-table th, .output-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+        }
+        .output-table th { background: var(--border-color); }
+        
+        .footer {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            text-shadow: 1px 1px 0 #000;
+            z-index: 100;
+        }
+        .footer a {
+            color: #ffd700;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-window">
+
+    <div class="initial-container active" id="initialContainer">
+        <h1>打怪升級測驗</h1>
+        <div id="highScore">最高紀錄: 擊敗 0 隻怪獸</div>
+        <button onclick="startGame()">開始戰鬥</button>
+        <button class="clear-btn" onclick="clearAllData()">清除所有紀錄</button>
+    </div>
+
+    <div class="quiz-container" id="quizContainer">
+        <div class="battle-stats">
+            <span id="monsterLevel"></span> | <span id="monstersDefeated"></span>
+        </div>
+        <div class="battle-scene">
+            <div class="character-area">
+                <div class="character-sprite" id="hero-sprite"></div>
+                <div class="hp-bar-container"><div class="hp-bar" id="hero-hp-bar"></div></div>
+                <div class="hp-text" id="hero-hp-text"></div>
+            </div>
+            <div class="character-area">
+                <div class="character-sprite" id="monster-sprite"></div>
+                <div class="hp-bar-container"><div class="hp-bar" id="monster-hp-bar"></div></div>
+                <div class="hp-text" id="monster-hp-text"></div>
+            </div>
+        </div>
+        <div id="battle-log">戰鬥開始！</div>
+        <div id="question" class="question"></div>
+        <div class="options" id="options"></div>
+    </div>
+
+    <div class="generator-container" id="generatorContainer">
+        <h2>題庫編輯器</h2>
+        <textarea id="generatorInput" placeholder="建議使用Tab分欄以避免選項中的逗號出錯
+題目(Tab)答案(1-4)(Tab)選項A(Tab)選項B...">根據文本，「孝道是美德」屬於親人相處的哪個主要概念範疇？	1	親人間的相處	親人的稱呼	友愛兄弟姐妹	親人的往來
+根據文本，族群是指具有共同哪些特徵的一群人？	1	風俗習慣、生活方式和語言	財富、地位和職業	興趣、愛好和血緣	宗教、信仰和政治立場
+文本中提到的「我」的家庭成員，除了「我」之外，還明確列出了哪些人？	1	爸爸、媽媽、爺爺、奶奶、弟弟	叔叔、阿姨、哥哥、姊姊	老師、同學、朋友	鄰居、醫生、警察
+根據文本，「家族」與「族群」這兩個概念的關係為何？	1	族群比家族範圍更廣，族群強調共同風俗習慣、生活方式和語言	家族比族群範圍更廣，家族強調血緣關係	家族和族群是完全相同的概念	文本未提及族群與家族的區別
+關於「名字的意義」，文本指出通常由誰來決定？	1	爸媽	學校老師	朋友	自己
+在「親人的稱呼」部分，文本列舉了哪些具體的稱呼？	1	爸爸、爺爺、媽媽、奶奶、弟弟	老師、同學、朋友	先生、小姐、女士	客人、老闆、同事
+根據文本，哪些因素會造成家庭成員組成的改變？	1	新生兒出生、家人過世	搬家、換工作	旅遊、上學	購物、運動
+文本對於面對別人的姓名，強調應該抱持什麼樣的態度？	1	尊重	批判	忽視	嘲笑
+根據文本，姓名對「我」而言，最主要的代表意義是什麼？	1	是「我」的代表，有了姓名別人才知道如何稱呼我	是財富的象徵	是地位的標誌	是一種藝術創作
+文本中提及的原住民族命名方式範例是哪一組？	1	巴奈‧阿利可瓦、歷斯‧貝林	陳品安、張健恩	小明、小華	王大錘、李小花
+文本中強調「用愛溫暖我們的社會」，這句話主要體現了什麼？	1	親人之間應展現友愛與關懷並擴及社會	社會應提供更多的物質援助	鼓勵人們僅限於家人之間的互動	提倡積極參與政治活動
+文本中提到「家庭的功能」包含哪些面向？	1	照顧與關懷、保護、教育、收入與消費	娛樂、旅遊、購物、運動	讀書、工作、睡覺、吃飯	社交、探險、創造、研究
+文本建議我們可以透過哪種方式來了解自己名字的意義？	1	訪問家人	查閱字典	上網搜尋	詢問老師
+當遇到父母要分開，心裡很難過時，文本建議可以怎麼做？	1	向其他家人或學校的老師說出自己的心情與感受	獨自一人承受，不要告訴任何人	馬上離家出走，尋找新的家庭	假裝沒事發生，避免面對現實
+文本提到「適當的稱呼」與「友愛兄弟姐妹」主要屬於哪個主題範疇？	1	親人的往來	家庭的功能	命名的方式	家庭成員的改變</textarea>
+        <button onclick="submitGenerator()">保存題庫</button>
+        <div class="output-table-container" id="outputTableContainer"></div>
+        <button onclick="showInitial()">返回主選單</button>
+    </div>
+
+</div>
+
+<div class="result-layer" id="resultLayer">
+    <div class="result-content">
+        <h2 id="resultTitle">遊戲結束</h2>
+        <p id="resultMessage"></p>
+        <button onclick="restartGame()">重新挑戰</button>
+    </div>
+</div>
+
+<div class="footer">
+    Made by <a href="https://kentxchang.blogspot.tw" target="_blank">阿剛老師</a>
+</div>
+
+<script>
+    let questions = [];
+    let currentQuestion = 0;
+    let shuffledQuestions = [];
+
+    // --- 角色圖片庫 ---
+    const heroImages = [
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/hero.png',
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/hero02.png',
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/hero03.png'
+    ];
+    const monsterImages = [
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/moster01.png',
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/moster02.png',
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/moster03.png',
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/moster04.png',
+        'https://filedn.com/laMtL9jmKf7JrDEQG0A6OPy/html/%E9%81%B8%E6%93%87%E9%A1%8C%E9%81%8A%E6%88%B2-%E6%89%93%E6%80%AA%E5%8D%87%E7%B4%9A/moster05.png'
+    ];
+    let currentMonsterImage = null; // 紀錄當前的怪物圖片，避免下一隻重複
+
+    // Game State
+    let heroHP, heroMaxHP, heroAttack;
+    let monsterHP, monsterMaxHP, monsterAttack, monsterLevel, monstersDefeated;
+
+    // --- Local Storage Setup ---
+    const fileName = window.location.pathname.split('/').pop() || 'default_quiz_rpg';
+    const questionsKey = `questions_${fileName}`;
+    const highScoreKey = `highScore_${fileName}`;
+
+    function initializeGame() {
+        heroMaxHP = 100;
+        heroHP = heroMaxHP;
+        heroAttack = 25;
+        monsterLevel = 1;
+        monstersDefeated = 0;
+        
+        // 設定隨機英雄圖片
+        const heroSprite = document.getElementById('hero-sprite');
+        const randomHeroImg = heroImages[Math.floor(Math.random() * heroImages.length)];
+        heroSprite.style.backgroundImage = `url('${randomHeroImg}')`;
+
+        spawnMonster();
+    }
+
+    function spawnMonster() {
+        monsterMaxHP = 50 + (monsterLevel - 1) * 20;
+        monsterHP = monsterMaxHP;
+        monsterAttack = 10 + (monsterLevel - 1) * 5;
+
+        // 設定不重複的隨機怪物圖片
+        const monsterSprite = document.getElementById('monster-sprite');
+        let availableMonsterImages = monsterImages.filter(img => img !== currentMonsterImage);
+        if (availableMonsterImages.length === 0) { // 如果只有一張圖或發生意外，則重置列表
+            availableMonsterImages = monsterImages;
+        }
+        const randomMonsterImg = availableMonsterImages[Math.floor(Math.random() * availableMonsterImages.length)];
+        currentMonsterImage = randomMonsterImg;
+        monsterSprite.style.backgroundImage = `url('${randomMonsterImg}')`;
+        
+        updateUI();
+    }
+
+    function startGame() {
+        loadQuizQuestions();
+        if (questions.length === 0) {
+            alert("題庫是空的！請先到題庫編輯器新增題目。");
+            return;
+        }
+        
+        initializeGame();
+        shuffledQuestions = shuffleArray([...questions]);
+        currentQuestion = 0;
+
+        document.getElementById('initialContainer').classList.remove('active');
+        document.getElementById('quizContainer').classList.add('active');
+        
+        displayQuestion();
+        updateUI();
+    }
+    
+    function updateUI() {
+        // Update stats
+        document.getElementById('monsterLevel').textContent = `等級 ${monsterLevel} 怪獸`;
+        document.getElementById('monstersDefeated').textContent = `擊敗: ${monstersDefeated}`;
+
+        // Update HP Bars
+        const heroHPPerc = (heroHP / heroMaxHP) * 100;
+        const monsterHPPerc = (monsterHP / monsterMaxHP) * 100;
+        document.getElementById('hero-hp-bar').style.width = `${heroHPPerc}%`;
+        document.getElementById('monster-hp-bar').style.width = `${monsterHPPerc}%`;
+
+        // Update HP Text
+        document.getElementById('hero-hp-text').textContent = `HP: ${Math.max(0, heroHP)} / ${heroMaxHP}`;
+        document.getElementById('monster-hp-text').textContent = `HP: ${Math.max(0, monsterHP)} / ${monsterMaxHP}`;
+    }
+
+    function displayQuestion() {
+        if (currentQuestion >= shuffledQuestions.length) {
+            currentQuestion = 0; // Loop questions
+            shuffledQuestions = shuffleArray([...questions]);
+        }
+
+        const questionElement = document.getElementById('question');
+        const optionsElement = document.getElementById('options');
+        const currentQ = shuffledQuestions[currentQuestion];
+
+        questionElement.textContent = `Q: ${currentQ.question}`;
+        optionsElement.innerHTML = '';
+        
+        const shuffledOptions = shuffleArray([...currentQ.options]);
+        currentQ.shuffledOptions = shuffledOptions; // Store shuffled order for checking
+
+        shuffledOptions.forEach((option) => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.onclick = () => selectAnswer(option);
+            optionsElement.appendChild(button);
+        });
+    }
+
+    function selectAnswer(selectedOption) {
+        document.querySelectorAll('.options button').forEach(b => b.disabled = true);
+        const currentQ = shuffledQuestions[currentQuestion];
+        const correctAnswer = currentQ.options[currentQ.correct];
+
+        if (selectedOption === correctAnswer) {
+            // Correct answer
+            logBattle("你答對了！對怪獸造成 " + heroAttack + " 點傷害！");
+            animateSprite('monster-sprite', 'shake');
+            showDamageEffect('monster-sprite'); // 顯示攻擊特效
+            monsterHP -= heroAttack;
+            
+            setTimeout(() => {
+                updateUI();
+                if (monsterHP <= 0) {
+                    defeatMonster();
+                } else {
+                    nextTurn();
+                }
+            }, 500);
+
+        } else {
+            // Incorrect answer
+            logBattle(`你答錯了！怪獸對你造成 ${monsterAttack} 點傷害！`);
+            animateSprite('hero-sprite', 'shake');
+            showDamageEffect('hero-sprite'); // 顯示攻擊特效
+            heroHP -= monsterAttack;
+            
+            setTimeout(() => {
+                updateUI();
+                if (heroHP <= 0) {
+                    gameOver();
+                } else {
+                    nextTurn();
+                }
+            }, 500);
+        }
+    }
+    
+    function nextTurn() {
+         setTimeout(() => {
+            currentQuestion++;
+            displayQuestion();
+            logBattle("下一題...");
+        }, 1000);
+    }
+
+    function defeatMonster() {
+        logBattle("你擊敗了怪獸！");
+        monstersDefeated++;
+        monsterLevel++;
+
+        setTimeout(() => {
+            logBattle("一隻更強的怪獸出現了！");
+            spawnMonster();
+            nextTurn();
+        }, 1500);
+    }
+    
+    function gameOver() {
+        logBattle("你被擊敗了...遊戲結束。");
+        const highScore = loadHighScore();
+        if (monstersDefeated > highScore) {
+            saveHighScore(monstersDefeated);
+        }
+
+        document.getElementById('resultTitle').textContent = "遊戲結束";
+        document.getElementById('resultMessage').textContent = `你成功擊敗了 ${monstersDefeated} 隻怪獸！`;
+        document.getElementById('resultLayer').style.display = 'flex';
+    }
+    
+    function restartGame() {
+        document.getElementById('resultLayer').style.display = 'none';
+        document.getElementById('quizContainer').classList.remove('active');
+        document.getElementById('initialContainer').classList.add('active');
+        displayHighScore();
+    }
+
+    function logBattle(message) {
+        document.getElementById('battle-log').textContent = message;
+    }
+    
+    function animateSprite(spriteId, animationClass) {
+        const sprite = document.getElementById(spriteId);
+        sprite.classList.add(animationClass);
+        setTimeout(() => sprite.classList.remove(animationClass), 200);
+    }
+
+    // 新增：顯示攻擊特效的函式
+    function showDamageEffect(spriteId) {
+        const sprite = document.getElementById(spriteId);
+        const area = sprite.parentElement; // 取得 .character-area
+        if (area) {
+            const effect = document.createElement('div');
+            effect.className = 'damage-effect';
+            area.appendChild(effect);
+
+            // 動畫結束後移除特效元素
+            setTimeout(() => {
+                effect.remove();
+            }, 300); // 此時間需與CSS中的動畫時間一致
+        }
+    }
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // --- UI Navigation ---
+    function showGenerator() {
+        document.getElementById('initialContainer').classList.remove('active');
+        document.getElementById('generatorContainer').classList.add('active');
+        loadQuizQuestions(); // Load existing questions into view
+        renderOutputTable(questions);
+    }
+
+    function showInitial() {
+        document.getElementById('generatorContainer').classList.remove('active');
+        document.getElementById('initialContainer').classList.add('active');
+        displayHighScore();
+    }
+    
+    // --- Generator Logic ---
+    function submitGenerator() {
+        const input = document.getElementById('generatorInput').value;
+        questions = parseGeneratorInput(input);
+        saveQuizQuestions();
+        renderOutputTable(questions);
+        alert("題庫已保存！");
+    }
+
+    function parseGeneratorInput(input) {
+        return input.split('\n').filter(line => line.trim() !== '').map(line => {
+            const parts = line.split('\t'); // Use ONLY tab as delimiter for robustness
+            const [question, correct, ...options] = parts;
+            return {
+                question,
+                options: options.slice(0, 4),
+                correct: parseInt(correct, 10) - 1
+            };
+        }).filter(q => q.question && q.options.length === 4 && q.correct >= 0 && q.correct <= 3);
+    }
+    
+    function renderOutputTable(data) {
+        const container = document.getElementById('outputTableContainer');
+        if (!data || data.length === 0) {
+            container.innerHTML = "<p>題庫目前是空的。</p>";
+            return;
+        }
+        container.innerHTML = '<table class="output-table"><thead><tr><th>題目</th><th>答案(選項)</th><th>選項A</th><th>選項B</th><th>選項C</th><th>選項D</th></tr></thead><tbody></tbody></table>';
+        const tbody = container.querySelector('tbody');
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${item.question}</td><td>${item.correct + 1}</td><td>${item.options[0]}</td><td>${item.options[1]}</td><td>${item.options[2]}</td><td>${item.options[3]}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- Local Storage Functions ---
+    function saveQuizQuestions() {
+        localStorage.setItem(questionsKey, JSON.stringify(questions));
+    }
+
+    function loadQuizQuestions() {
+        const generatorInput = document.getElementById('generatorInput');
+        const initialTextAreaContent = generatorInput.value.trim();
+
+        if (initialTextAreaContent) {
+            // 優先：如果HTML中的textarea本身就有內容，就使用它作為題庫
+            questions = parseGeneratorInput(initialTextAreaContent);
+            saveQuizQuestions(); // 並將其保存到本地儲存中
+        } else {
+            // 其次：如果textarea是空的，則嘗試從本地儲存中載入
+            const saved = localStorage.getItem(questionsKey);
+            if (saved && saved !== '[]') {
+                questions = JSON.parse(saved);
+                // 將載入的題目顯示在編輯器中
+                generatorInput.value = questions.map(q => `${q.question}\t${q.correct + 1}\t${q.options.join('\t')}`).join('\n');
+            } else {
+                // 如果本地儲存也是空的，則不載入任何題目
+                questions = [];
+                generatorInput.value = '';
+            }
+        }
+    }
+    
+    function saveHighScore(score) {
+        localStorage.setItem(highScoreKey, score);
+    }
+
+    function loadHighScore() {
+        return parseInt(localStorage.getItem(highScoreKey) || "0");
+    }
+
+    function displayHighScore() {
+        const score = loadHighScore();
+        document.getElementById('highScore').textContent = `最高紀錄: 擊敗 ${score} 隻怪獸`;
+    }
+
+    function clearAllData() {
+        if (confirm("確定要清除所有本地儲存紀錄嗎？這會刪除所有題庫和最高分紀錄。")) {
+            localStorage.clear();
+            questions = [];
+            displayHighScore();
+            alert("所有紀錄已清除！");
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        loadQuizQuestions();
+        displayHighScore();
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if ((event.key === 'e' || event.key === 'E') && document.getElementById('initialContainer').classList.contains('active')) {
+            showGenerator();
+        }
+    });
+</script>
+
+
+
+</body></html>
